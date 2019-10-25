@@ -1,6 +1,5 @@
-﻿using Agility.Web;
+using Agility.Web;
 using Agility.Web.Objects;
-using {YOURAPP}.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -11,18 +10,23 @@ using System.Web;
 using System.Web.Mvc;
 using System.Xml;
 
-namespace {YOURAPP}.Controllers
+namespace {YouApp}.Controllers
 {
     public class SitemapController : Controller
     {
         private const string XMLNSAttribute = "http://www.sitemaps.org/schemas/sitemap/0.9";
         private const string XMLNSImageAttribute = "http://www.google.com/schemas/sitemap-image/1.1";
+    
 
 
         public ActionResult XmlSitemap()
         {
 
             ContentResult result = new ContentResult();
+
+            //get the agility configuration
+            Config agilityConfig = Data.GetConfig();
+            bool includeLanguageCodeInUrl = agilityConfig.IncludeLanguageCodeInUrl;
 
             // Set the content-type			
             result.ContentType = "text/xml";
@@ -39,7 +43,7 @@ namespace {YOURAPP}.Controllers
             writer.WriteAttributeString("xmlns:image", XMLNSImageAttribute);
             // write elements
 
-            BuildSiteMap(ControllerContext, writer);
+            BuildSiteMap(ControllerContext, writer, includeLanguageCodeInUrl);
 
             // write out </PromoItems>
             writer.WriteEndElement();
@@ -54,7 +58,7 @@ namespace {YOURAPP}.Controllers
         }
 
 
-        private void BuildSiteMap(ControllerContext context, XmlTextWriter writer)
+        private void BuildSiteMap(ControllerContext context, XmlTextWriter writer, bool includeLanguageCodeInUrl)
         {
             //Loops through All Languages
             string startingLanguage = Agility.Web.AgilityContext.LanguageCode;
@@ -78,14 +82,14 @@ namespace {YOURAPP}.Controllers
                 foreach (System.Web.SiteMapNode oNode in oProvider.RootNode.GetAllNodes())
                 {
 
-                    WriteURLNode(context, writer, l.LanguageCode, oNode, channelDomain);
+                    WriteURLNode(context, writer, l.LanguageCode, oNode, channelDomain, includeLanguageCodeInUrl);
                 }
             }
 
             Agility.Web.AgilityContext.LanguageCode = startingLanguage;
         }
 
-        private void WriteURLNode(ControllerContext context, XmlTextWriter writer, string langCode, System.Web.SiteMapNode node, ChannelDomain channelDomain)
+        private void WriteURLNode(ControllerContext context, XmlTextWriter writer, string langCode, System.Web.SiteMapNode node, ChannelDomain channelDomain, bool includeLanguageCodeInUrl)
         {
             //skip stuff that doesn't belong on the sitemap...
             if (string.Equals(node["SitemapVisible"], "false", StringComparison.CurrentCultureIgnoreCase))
@@ -114,8 +118,7 @@ namespace {YOURAPP}.Controllers
 
             DateTime lastMod = DateTime.MinValue;
             string changeFreq = "daily";
-            double priority = 0;
-            List<SiteMapImage> images = new List<SiteMapImage>();
+                double priority = 0;        
 
             Agility.Web.Objects.AgilitySiteMapNode agilityNode = node as Agility.Web.Objects.AgilitySiteMapNode;
             Agility.Web.Objects.AgilityDynamicSiteMapNode dynamicNode = node as Agility.Web.Objects.AgilityDynamicSiteMapNode;
@@ -168,7 +171,7 @@ namespace {YOURAPP}.Controllers
                 }
                 else
                 {
-                    writer.WriteString(string.Format("{0}{1}", host, ResolveUrl(loc).ToLowerInvariant()));
+                    writer.WriteString(string.Format("{0}{1}", host, ResolveUrl(loc, includeLanguageCodeInUrl).ToLowerInvariant()));
                 }
                 writer.WriteEndElement();
             }
@@ -213,13 +216,13 @@ namespace {YOURAPP}.Controllers
 
             writer.WriteEndElement();
         }
- 
-        static string ResolveUrl(string relativeUrl)
+
+        private static string ResolveUrl(string relativeUrl, bool includeLanguageCodeInUrl)
         {
             if (relativeUrl.StartsWith("~/")
                 && !relativeUrl.StartsWith("~/" + AgilityContext.LanguageCode, StringComparison.InvariantCultureIgnoreCase)
-                && AgilityContext.IsUsingLanguageModule
-                && relativeUrl.IndexOf(".aspx", StringComparison.InvariantCultureIgnoreCase) != -1)
+                && includeLanguageCodeInUrl
+                )
             {
 
                 relativeUrl = "~/" + AgilityContext.LanguageCode + relativeUrl.Substring(1);
